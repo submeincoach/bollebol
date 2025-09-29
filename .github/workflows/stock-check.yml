@@ -21,4 +21,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run stock checker
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python bolcom_pokemon_stock_checker.py
