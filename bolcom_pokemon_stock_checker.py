@@ -150,7 +150,9 @@ def fetch_page(url):
 def page_indicates_in_stock(html):
     soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text().lower()
-    return "op voorraad" in text and "tijdelijk niet beschikbaar" not in text and "uitverkocht" not in text
+    return ("op voorraad" in text or "in winkelwagen" in text) and \
+           "tijdelijk niet beschikbaar" not in text and \
+           "uitverkocht" not in text
 
 
 def send_discord_message(message):
