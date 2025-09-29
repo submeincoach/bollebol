@@ -1,5 +1,5 @@
+import os
 import requests
-import time
 import traceback
 
 PRODUCT_URLS = [
@@ -8,8 +8,8 @@ PRODUCT_URLS = [
     "https://www.bol.com/nl/nl/p/pokemon-tcg-mega-evolution-6-booster-bundel/9300000235555645/",
     "https://www.bol.com/nl/nl/p/me01-mega-evolution-bo-18ct-display/9300000235555637/",
 ]
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1421979172284403783/yGf1_cVii9IsIN6c6mwcCobPWbSU320BHwEyLxCVn6ueAaMaX5QYj24orpTOV1YeGQ9p'
-CHECK_INTERVAL = 60  # seconds
+
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 
 def check_stock(product_url):
     headers = {
@@ -25,6 +25,9 @@ def check_stock(product_url):
         return False
 
 def send_discord_notification(product_url):
+    if not DISCORD_WEBHOOK_URL:
+        print("Discord webhook URL is not set.")
+        return
     data = {
         "content": f"🎉 Pokémon product in stock! Check it here: {product_url}"
     }
@@ -35,22 +38,17 @@ def send_discord_notification(product_url):
         print(f"Failed to send Discord notification: {response.text}")
 
 def main():
-    print("Starting Bol.com Pokémon stock checker for multiple products...")
-    notified = set()
-    while True:
+    print("Checking Bol.com Pokémon stock once for all products...")
+    for url in PRODUCT_URLS:
         try:
-            for url in PRODUCT_URLS:
-                in_stock = check_stock(url)
-                if in_stock and url not in notified:
-                    send_discord_notification(url)
-                    notified.add(url)
-                elif not in_stock:
-                    print(f"Not in stock yet: {url}")
-            time.sleep(CHECK_INTERVAL)
+            in_stock = check_stock(url)
+            if in_stock:
+                send_discord_notification(url)
+            else:
+                print(f"Not in stock: {url}")
         except Exception as e:
             print("Error occurred:", e)
             traceback.print_exc()
-            time.sleep(60)
 
 if __name__ == "__main__":
     main()
