@@ -1,3 +1,7 @@
-requests
 beautifulsoup4
-discord-webhook
+cloudscraper
+python-dotenv
+fake-useragent
+retrying
+requests
+undetected-chromedriver
