@@ -207,7 +207,12 @@ def main():
                 print(f"❌ Error checking {url}: {e}")
 
         save_hashes(last_hashes)
-        print(f"⏳ Sleeping {INTERVAL} seconds before next check...")
+
+        # Exit after one run if RUN_ONCE is set to "true"
+        if os.getenv("RUN_ONCE", "").lower() == "true":
+            print("🛑 RUN_ONCE is true, exiting after single run.")
+            break
+
         time.sleep(INTERVAL)
 
 
