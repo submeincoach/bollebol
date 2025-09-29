@@ -20,6 +20,7 @@ PRODUCT_URLS = [
     "https://www.bol.com/nl/nl/p/me01-mega-evolution-etb-mega-gardevoir/9300000235555646/",
     "https://www.bol.com/nl/nl/p/pokemon-tcg-mega-evolution-6-booster-bundel/9300000235555645/",
     "https://www.bol.com/nl/nl/p/me01-mega-evolution-bo-18ct-display/9300000235555637/",
+    "https://www.bol.com/nl/nl/p/me01-mega-evolution-etb-mega-lucario/9300000235555643/",
 ]
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
