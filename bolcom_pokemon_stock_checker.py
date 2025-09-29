@@ -198,13 +198,20 @@ def main():
             in_stock = page_indicates_in_stock(html)
             last_hash = last_hashes.get(url)
 
-            if in_stock and current_hash != last_hash:
-                print(f"✅ In stock: {url}")
-                send_discord_message(
-                    f"🎉 Product is in stock! <@here>\n{url}")
+            if current_hash != last_hash:
+                # Page content has changed since last check
+                if in_stock:
+                    print(f"✅ In stock: {url}")
+                    send_discord_message(
+                        f"🎉 Product is in stock! <@here>\n{url}")
+                else:
+                    print(f"⚠️ Page updated but product still out of stock: {url}")
+                    send_discord_message(
+                        f"⚠️ Page updated but product is still out of stock:\n{url}")
                 last_hashes[url] = current_hash
             else:
                 print(f"⏳ Not in stock or unchanged: {url}")
+
         except Exception as e:
             print(f"❌ Error checking {url}: {e}")
 
