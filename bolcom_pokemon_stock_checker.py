@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from fake_useragent import UserAgent
 from retrying import retry
+
 try:
     import undetected_chromedriver as uc
     BROWSER_AVAILABLE = True
@@ -29,10 +30,13 @@ LAST_HASH_FILE = ".last_hashes.txt"
 ua = UserAgent()
 
 scraper_session = cloudscraper.create_scraper(
-    browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False},
+    browser={
+        'browser': 'chrome',
+        'platform': 'windows',
+        'mobile': False
+    },
     delay=10
 )
-
 
 def get_random_headers():
     return {
@@ -44,11 +48,12 @@ def get_random_headers():
         "Upgrade-Insecure-Requests": "1",
     }
 
-
 def fetch_page_with_browser(url):
     if not BROWSER_AVAILABLE:
         raise Exception("Browser fallback not available")
-    
+
+    print(f"🌐 Using browser fallback for: {url[:50]}...")
+
     options = uc.ChromeOptions()
     options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
@@ -60,28 +65,31 @@ def fetch_page_with_browser(url):
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument('--disable-web-security')
     options.add_argument('--allow-running-insecure-content')
-    
+
     driver = None
     try:
         driver = uc.Chrome(options=options, use_subprocess=True)
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
         time.sleep(random.uniform(3, 8))
         driver.get(url)
         time.sleep(random.uniform(5, 10))
-        
+
         page_text = driver.page_source.lower()
         if "challenge" in page_text or "checking your browser" in page_text:
             print(f"🛡️ Browser challenge detected, waiting...")
             time.sleep(random.uniform(15, 30))
             page_text = driver.page_source
-        
+
+        print(f"✅ Browser successfully fetched: {url[:50]}...")
         return driver.page_source
+
     except Exception as e:
+        print(f"❌ Browser error for {url}: {e}")
         raise
     finally:
         if driver:
             driver.quit()
-
 
 @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
 def fetch_page(url):
@@ -92,56 +100,52 @@ def fetch_page(url):
     try:
         headers = get_random_headers()
         scraper_session.headers.update(headers)
+
         r = scraper_session.get(url, timeout=30)
         r.raise_for_status()
 
         if "challenge" in r.text.lower() or "checking your browser" in r.text.lower():
+            print(f"🛡️ CloudScraper challenge detected, trying browser fallback...")
             return fetch_page_with_browser(url)
 
+        print(f"✅ [CLOUDSCRAPER] Fetched page for {url[:50]} (len={len(r.text)})")
         return r.text
 
     except Exception as cloudscraper_error:
+        print(f"❌ [CLOUDSCRAPER] Failed for {url}: {cloudscraper_error}")
+
         if "403" in str(cloudscraper_error) or "401" in str(cloudscraper_error):
             try:
+                print(f"🔄 Trying browser fallback due to {cloudscraper_error}...")
                 return fetch_page_with_browser(url)
             except Exception as browser_error:
-                pass
+                print(f"❌ Browser fallback also failed: {browser_error}")
 
         time.sleep(random.uniform(10, 20))
         raise cloudscraper_error
 
-
-def extract_stock_section(html):
+def extract_stock_keywords(html):
     soup = BeautifulSoup(html, "html.parser")
-    selectors = [
-        "div.buy-block",
-        "div.buy-block__wrapper",
-        "div.buy-block__content",
-        "div.offer-panel",
-        "div#offer-block",
-        "div.offer-container",
-        "div.product-offer",
-        "div.buy-box"
-    ]
-    for sel in selectors:
-        block = soup.select_one(sel)
-        if block:
-            return block.get_text(separator=" ", strip=True).lower()
-    return soup.get_text(separator=" ", strip=True).lower()
+    text = soup.get_text(separator=" ", strip=True).lower()
 
+    keywords = []
+    for phrase in ["op voorraad", "tijdelijk niet beschikbaar", "uitverkocht", "in winkelwagen", "niet leverbaar"]:
+        if phrase in text:
+            keywords.append(phrase)
+
+    return " | ".join(sorted(keywords))
 
 def page_indicates_in_stock(html):
-    block_text = extract_stock_section(html)
-    return ("in winkelwagen" in block_text or "op voorraad" in block_text) and \
-           "tijdelijk niet beschikbaar" not in block_text and \
-           "uitverkocht" not in block_text and \
-           "niet leverbaar" not in block_text
-
+    text = html.lower()
+    return ("op voorraad" in text or "in winkelwagen" in text) and \
+           "tijdelijk niet beschikbaar" not in text and \
+           "uitverkocht" not in text
 
 def send_discord_message(message):
     if not WEBHOOK_URL:
         print("⚠️ No Discord webhook URL configured")
         return
+
     import requests
     payload = {"content": message}
     try:
@@ -150,10 +154,8 @@ def send_discord_message(message):
     except Exception as e:
         print(f"❌ Failed to send Discord message: {e}")
 
-
 def get_hash(content):
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
-
 
 def read_last_hashes():
     if not os.path.exists(LAST_HASH_FILE):
@@ -162,12 +164,10 @@ def read_last_hashes():
         lines = f.readlines()
     return dict(line.strip().split(" ", 1) for line in lines)
 
-
 def save_hashes(hashes):
     with open(LAST_HASH_FILE, "w") as f:
         for url, h in hashes.items():
             f.write(f"{url} {h}\n")
-
 
 def main():
     print("🔍 Starting bol.com stock checker...")
@@ -176,28 +176,30 @@ def main():
     for url in PRODUCT_URLS:
         try:
             html = fetch_page(url)
-            stock_block = extract_stock_section(html)
-            current_hash = get_hash(stock_block)
+            stock_keywords = extract_stock_keywords(html)
+            current_hash = get_hash(stock_keywords)
             in_stock = page_indicates_in_stock(html)
             last_hash = last_hashes.get(url)
 
             if current_hash != last_hash:
                 if in_stock:
                     print(f"✅ In stock: {url}")
-                    send_discord_message(f"🎉 Product is in stock! <@here>\n{url}")
+                    send_discord_message(
+                        f"🎉 Product is in stock! <@here>\n{url}")
                 else:
                     print(f"⚠️ Stock section changed but product still out of stock: {url}")
-                    send_discord_message(f"⚠️ Stock section changed but product is still out of stock:\n{url}")
+                    # Comment out if you want no message at all:
+                    send_discord_message(
+                        f"⚠️ Stock-related text changed, but product is still out of stock:\n{url}")
                 last_hashes[url] = current_hash
             else:
-                print(f"⏳ Stock section unchanged: {url}")
+                print(f"⏳ Not in stock or unchanged: {url}")
 
         except Exception as e:
             print(f"❌ Error checking {url}: {e}")
 
     save_hashes(last_hashes)
     print("✅ Single run complete.")
-
 
 if __name__ == "__main__":
     main()
