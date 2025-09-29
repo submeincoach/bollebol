@@ -1,12 +1,12 @@
-name: Run Bol.com Stock Checker (single run)
+name: Run Bol.com Stock Checker (scheduled)
 
 on:
-  workflow_dispatch:
-  # schedule:
-  #   - cron: '*/5 * * * *'
+  schedule:
+    - cron: '*/5 * * * *'  # runs every 5 minutes
+  workflow_dispatch:       # manual trigger
 
 jobs:
-  run-once:
+  run:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -32,9 +32,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Bol.com stock checker once
+      - name: Run Bol.com stock checker
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          RUN_ONCE: "true"
         run: |
           python bolcom_pokemon_stock_checker.py
