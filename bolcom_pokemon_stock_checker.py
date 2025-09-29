@@ -69,11 +69,9 @@ def fetch_page_with_browser(url):
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument('--disable-web-security')
     options.add_argument('--allow-running-insecure-content')
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    
-    # Optionally specify Chromium binary path if needed:
-    # options.binary_location = "/usr/bin/chromium-browser"
+    # Removed these as they cause errors:
+    # options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    # options.add_experimental_option('useAutomationExtension', False)
     
     driver = None
     try:
@@ -105,6 +103,7 @@ def fetch_page_with_browser(url):
     finally:
         if driver:
             driver.quit()
+
 
 @retry(stop_max_attempt_number=3, wait_exponential_multiplier=1000, wait_exponential_max=10000)
 def fetch_page(url):
