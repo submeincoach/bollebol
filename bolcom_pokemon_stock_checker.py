@@ -188,32 +188,25 @@ def main():
     print("🔍 Starting bol.com stock checker...")
     last_hashes = read_last_hashes()
 
-    while True:
-        for url in PRODUCT_URLS:
-            try:
-                html = fetch_page(url)
-                current_hash = get_hash(html)
-                in_stock = page_indicates_in_stock(html)
-                last_hash = last_hashes.get(url)
+    for url in PRODUCT_URLS:
+        try:
+            html = fetch_page(url)
+            current_hash = get_hash(html)
+            in_stock = page_indicates_in_stock(html)
+            last_hash = last_hashes.get(url)
 
-                if in_stock and current_hash != last_hash:
-                    print(f"✅ In stock: {url}")
-                    send_discord_message(
-                        f"🎉 Product is in stock! <@here>\n{url}")
-                    last_hashes[url] = current_hash
-                else:
-                    print(f"⏳ Not in stock or unchanged: {url}")
-            except Exception as e:
-                print(f"❌ Error checking {url}: {e}")
+            if in_stock and current_hash != last_hash:
+                print(f"✅ In stock: {url}")
+                send_discord_message(
+                    f"🎉 Product is in stock! <@here>\n{url}")
+                last_hashes[url] = current_hash
+            else:
+                print(f"⏳ Not in stock or unchanged: {url}")
+        except Exception as e:
+            print(f"❌ Error checking {url}: {e}")
 
-        save_hashes(last_hashes)
-
-        # Exit after one run if RUN_ONCE is set to "true"
-        if os.getenv("RUN_ONCE", "").lower() == "true":
-            print("🛑 RUN_ONCE is true, exiting after single run.")
-            break
-
-        time.sleep(INTERVAL)
+    save_hashes(last_hashes)
+    print("✅ Single run complete.")
 
 
 if __name__ == "__main__":
